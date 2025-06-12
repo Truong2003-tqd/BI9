@@ -1,0 +1,757 @@
+---
+title: "Data Exploratory"
+author: "Truong"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    toc: true
+    toc_float:
+      collapsed: FALSE
+    theme: cosmo
+    highlight: tango
+    df_print: paged           #Create page for Viewed tables
+    code_folding: hide        #Show or hide code
+    echo: TRUE
+    fig_width: 10
+    fig_height: 8
+    fig_caption: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# **A. Data Preprocessing**
+
+## **I. Import Libraries and Data**
+
+```{r Library, echo=TRUE, results='hide', message=FALSE, warning=FALSE}
+  library(tidyverse)
+  library(tibble)
+  library(naniar)
+  library(gtExtras)
+  library(patchwork)
+  library(gridExtra)
+  library(skimr)
+  library(VIM)
+  library(corrplot)
+  library(ggplot2)
+  library(grid)
+  library(car)
+  library(gtExtras)
+```
+
+```{r echo=TRUE, message=FALSE, results='hide'}
+library(readr)
+Segmentation2017 <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/2017Segmentation3685case.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Brand_Image <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/Brand_Image.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Brand_Health <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/Brandhealth.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Companion <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/Companion.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+Competitor_Database <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/Competitor database_xlnm#_FilterDatabase.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+DayofWeek <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/Dayofweek.csv", 
+    delim = ";", escape_double = FALSE, na = "NA", 
+    trim_ws = TRUE)
+DayPart <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/Daypart.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+NeedstateDayDaypart <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/NeedstateDayDaypart.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+SA_var <- read_delim("C:/Users/TRUONG/Downloads/My Courses/BI9/Data/SA#var.csv", 
+    delim = ";", escape_double = FALSE, trim_ws = TRUE)
+```
+
+## **II. Data Cleaning** {.tabset .tabset-fade .tabset-pills}
+
+### **Segmentation 2017**
+
+**1. Data dictionary**
+
+| Column Name | Description |
+|:-----------------------------------|:-----------------------------------|
+| **ID** | Unique identifier for each customer. |
+| **Segmentation** | Customer segment label, e.g., "Seg.02 - Mass Asp (VND 25K - VND 59K)". This indicates the segment code, a short descriptor like "Mass Aspirational" (typically middle-income, mainstream customers), and the average spending range per visit in VND. |
+| **Visit** | Number of visits made by the customer during the observation period. |
+| **Spending** | Total amount of money spent on the brand over a given time frame by the customer (in thousand VND; e.g., `120` = `120,000 VND`). |
+| **Brand** | Type of brand chosen by the customer. Examples include: <br> - **Independent**: Refers to standalone coffee shops, not part of a major chain. <br> - **Chain**: Refers to branded coffee shops that are part of a national or international chain. <br> - **Street**: Refers to small, informal vendors or roadside coffee stalls, often with limited seating and lower prices. |
+
+```{r echo=TRUE}
+#View data
+Segmentation2017
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(Segmentation2017)
+```
+
+**b. Check the data quality**
+
+```{r message=FALSE, warning=FALSE}
+skim(Segmentation2017)
+```
+
+**c. Summary Statistics**
+
+```{r}
+summary(Segmentation2017)
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unexpected decimal values**
+
+```{r}
+#Number of Unexpected Decimal Values
+Segmentation2017 %>%
+  mutate(is_whole_visit = Visit != floor(Visit)) %>%
+  summarise(
+     "Count Decimal Visit" = sum(is_whole_visit)
+  ) %>% 
+  pivot_longer(
+    cols = everything(),
+    names_to = "Variables",
+    values_to = "Count"
+  )
+```
+
+**b. Check for unique character values**
+
+```{r}
+lapply(Segmentation2017[c("Segmentation", "Spending", "Visit","Brand","PPA")], unique)
+```
+
+**c. Break segmentation into 3 columns with name, code and spending range**
+
+```{r}
+Segmentation2017 <- Segmentation2017 %>%
+  extract(Segmentation, 
+          into = c("SegmentCode", "SegmentName", "SpendingRange"), 
+          regex = "(Seg\\.\\d{2}) - (.+) \\((.+)\\)") 
+```
+
+
+**d. Check for duplicated ID**
+
+\_ Although there are many duplicated ID, the duplication is natural because a customer can buy products at different locations with different speding amount and quantities
+
+```{r}
+Segmentation2017 %>% 
+  mutate(is_duplicated = duplicated(ID)) %>%
+  summarise(
+     "Count Duplicated ID" = sum(is_duplicated)
+  ) %>% 
+  pivot_longer(
+    cols = everything(),
+    names_to = "ID",
+    values_to = "Count"
+  )
+```
+
+### **Brand Image**
+
+**1. Data dictionary**
+
+| Column Name | Description |
+|:-----------------------------------|:-----------------------------------|
+| **ID** | Unique identifier for each respondent. |
+| **Year** | Year of data collection. |
+| **City** | The city where the respondent resides. |
+| **Awareness** | The brand that the respondent is aware of. |
+| **Attribute** | How the respondent perceives the brand. |
+| **Brand Image** | The brand that the respondent associates with a particular image. |
+
+```{r echo=TRUE}
+#View data
+Brand_Image
+```
+
+```{r}
+Brand_Image$Year <- as.factor(Brand_Image$Year)
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(Brand_Image)
+```
+
+**b. Check the data quality**
+
+\_ The missingness in `Awareness` is natural
+
+```{r message=FALSE, warning=FALSE}
+skim(Brand_Image)
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values**
+
+\_ `Awareness` and `BrandImage` contain many brands, some of them can be grouped and labelled. For example, we have "Other", "Other 1", "Other 2", "Other 3", which can be labelled as "Other". 
+\_ `Attribute` can apply the same approach to reduce the unique values, easier for data analysis. 
+
+```{r}
+lapply(Brand_Image[c("Awareness", "BrandImage", "City", "Attribute","Year")], unique)
+```
+
+**b. Check for duplicated ID**
+
+\_ Help me check why the IDs are duplicated. The IDs are unique for each respondent, so I think each response should only refer to only one brand. The number of duplication is enormous, so it should not be randomly duplicated. The responses might be full and complete paragraphs of reviews about brands, which were break into short sentences like what we see in the data. Moreover, the responses might be collected on different days. I suggest you guys search for the ID number `863754` to understand the context.
+\_ To validate whether the duplication is error or not, you guys can help me search the mailbox for the template of the survey collecting these responses to understand the data. Otherwise, you can help me check whether the respondents had to do the survey multiple times or not.
+
+```{r}
+Brand_Image %>% 
+  mutate(is_duplicated = duplicated(ID)) %>%
+  summarise(
+    "Duplicated count" = sum(is_duplicated),
+    "Row count" = n()
+  )
+```
+
+**c. Convert names containing "other" to "Other" and containing "street" to "Street"**
+
+```{r}
+Brand_Image <- Brand_Image %>%
+  mutate(BrandImage = case_when(
+    str_detect(BrandImage, regex("other", ignore_case = TRUE)) ~ "Other",
+    str_detect(BrandImage, regex("street", ignore_case = TRUE)) ~ "Street",
+    TRUE ~ BrandImage
+        ),
+         Awareness = case_when(
+           str_detect(Awareness, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Awareness, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ BrandImage
+         ))
+```
+
+**d. Check unique values**
+
+```{r}
+lapply(Brand_Image[c("Awareness","BrandImage")],unique)
+```
+
+
+### **Brand Health**
+
+**1. Data dictionary**
+
+
+```{r echo=TRUE}
+#View data
+Brand_Health
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(Brand_Health)
+```
+
+**b. Check the data quality**
+
+```{r message=FALSE, warning=FALSE}
+skim(Brand_Health)
+```
+
+**c. Break segmentation into 3 columns with name, code and spending range**
+
+```{r}
+Brand_Health <- Brand_Health %>%
+  extract(Segmentation, 
+          into = c("SegmentCode", "SegmentName", "SpendingRange"), 
+          regex = "(Seg\\.\\d{2}) - (.+) \\((.+)\\)") 
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values of brand-related variables**
+
+\_ Apply the grouping approach in the Brand Image to clean variables contain brand names including `Brand`, `Spontaneous`, `Awareness`,Trial,P3M,P1M,Brand_Likability,Weekly,Daily,
+
+
+```{r}
+lapply(Brand_Health[c("Year","City","Brand","Spontaneous")], unique)
+```
+
+**b. Check for unique character values of variables not related to brand names**
+
+\_ There is no unexpected decimal values.
+\_ There is no erroneous character values.
+
+```{r}
+lapply(Brand_Health[c("Comprehension","SegmentCode","SegmentName","SpendingRange","NPS#P3M#Group","NPS#P3M","Fre#visit")], unique)
+```
+
+**c. Convert names containing "other" to "Other" and containing "street" to "Street"**
+
+```{r}
+Brand_Health <- Brand_Health %>%
+  mutate(Brand = case_when(
+    str_detect(Brand, regex("other", ignore_case = TRUE)) ~ "Other",
+    str_detect(Brand, regex("street", ignore_case = TRUE)) ~ "Street",
+    TRUE ~ Brand
+        ),
+         Spontaneous = case_when(
+           str_detect(Spontaneous, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Spontaneous, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ Spontaneous
+         ))
+```
+
+**d. Clean and standardize `Comprehension` variable**
+
+```{r}
+Brand_Health <- Brand_Health %>%
+  mutate(Comprehension = case_when(
+    Comprehension == "Do not know it at all"     ~ "Do not know",
+    Comprehension == "Maybe do not know it"      ~ "Unsure",
+    Comprehension == "Know a little"             ~ "Know a little",
+    Comprehension == "Know it well"              ~ "Know well",
+    Comprehension == "Know it very well"         ~ "Know very well",
+    TRUE                                         ~ Comprehension
+  )) 
+```
+
+**e. Check unique values**
+
+```{r}
+lapply(Brand_Health[c("Brand","Spontaneous","Comprehension")],unique)
+```
+
+### **Companion**
+
+**1. Data dictionary**
+
+```{r echo=TRUE}
+#View data
+Companion
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(Companion)
+```
+
+**b. Check the data quality**
+
+```{r message=FALSE, warning=FALSE}
+skim(Companion)
+```
+
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values**
+
+\_ No formatting error in variables
+
+
+```{r}
+lapply(Companion[c("City","Companion#group","Year")], unique)
+```
+
+### **Competitor Database**
+
+**1. Data dictionary**
+
+\_ The data contains the number of stores of each brand YoY (important), so aggregation that sum the number of stores without considering the `Year` must be meaningless.
+
+```{r echo=TRUE}
+#View data
+Competitor_Database
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(Competitor_Database)
+```
+
+**b. Rename the `No#`**
+
+```{r}
+Competitor_Database <- Competitor_Database %>% 
+  rename(`No` = `No#`)
+```
+
+
+**c. Check the data quality**
+
+```{r message=FALSE, warning=FALSE}
+skim(Competitor_Database)
+```
+
+**3. Erroneous Detection**
+
+**a. Check `No` duplication**
+
+
+```{r}
+Competitor_Database %>% 
+  mutate(is_duplicated = duplicated(No)) %>%
+  summarise(
+    "Duplicated count" = sum(is_duplicated),
+    "Row count" = n()
+  )
+```
+
+**b. Check for unique character values**
+
+\_ There is no unexpected decimal values.
+\_ There is no erroneous character values.
+
+```{r}
+lapply(Competitor_Database[c("Year","City","Brand","StoreCount")], unique)
+```
+
+### **Day of Week**
+
+**1. Data dictionary**
+
+
+```{r echo=TRUE}
+#View data
+DayofWeek
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(DayofWeek)
+```
+
+**b. Check the data quality**
+
+\_ Notice the `Visit#Dayofweek', the 75th percentile is 4 while max is 36, **remember to check and handle the outlier**.
+
+```{r message=FALSE, warning=FALSE}
+skim(DayofWeek)
+```
+
+**c. Rename Weekday#end**
+
+```{r}
+DayofWeek <- DayofWeek %>% 
+  rename(`DayType` = `Weekday#end`)
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values**
+
+```{r}
+lapply(DayofWeek[c("Year","City","Dayofweek","Visit#Dayofweek","DayType")], unique)
+```
+
+**b. Relabel "#N/A" to NA**
+
+```{r}
+DayofWeek <- DayofWeek %>% 
+  mutate(DayType = case_when(
+    DayType == "#N/A" ~ NA,
+    TRUE ~ DayType
+  )) 
+```
+
+**c. Convert "" in `Dayofweek" to NA**
+
+```{r}
+DayofWeek <- DayofWeek %>% 
+  mutate(Dayofweek = case_when(
+    Dayofweek == "" ~ NA,
+    TRUE            ~ Dayofweek
+  )) 
+```
+
+**d. Check unique values after processing**
+
+```{r}
+lapply(DayofWeek[c("Dayofweek","DayType")],unique)
+```
+
+### **Day Part**
+
+**1. Data dictionary**
+
+```{r echo=TRUE}
+#View data
+DayPart
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(DayPart)
+```
+
+**b. Check the data quality**
+
+\_ Remember the `Visit#Dayofweek' in DayofWeek table, the max number of visit per day is only 36, while the max of `Visit#Daypart` is 60. The max value appears to be unrealistics and may be a potential outlier. Otherwise, the differences in the number of visits in 2 table might result from the design of questions, or from the understanding of respondents while answering questions. **Consider different scenarios to handle outliers correctly.** Consider to **delete the incorrect values and replace by kNN method or Winzorization or remove from the data if necessary**
+
+```{r message=FALSE, warning=FALSE}
+skim(DayPart)
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values**
+
+\_ There is no unexpected decimal values.
+\_ There is no erroneous character values.
+
+```{r}
+lapply(DayPart[c("Daypart","City","Visit#Daypart","Year")], unique)
+```
+
+**b. Create numeric daypart code for prediction model**
+
+```{r}
+DayPart <- DayPart %>%
+  mutate(DayPartNumericCode = case_when(
+    Daypart == "Before 9 AM"               ~ "1",
+    Daypart == "9 AM - before 11 AM"       ~ "2",
+    Daypart == "11 AM - before 2 PM"       ~ "3",
+    Daypart == "2 PM - before 5 PM"        ~ "4",
+    Daypart == "5 PM - before 9 PM"        ~ "5",
+    Daypart == "9 PM or later"             ~ "6",
+    TRUE                                   ~ Daypart
+  )) 
+```
+
+**c. Standardize `DayPart` to Start-End Time Format**
+
+```{r}
+DayPart <- DayPart %>%
+  mutate(Daypart = case_when(
+    Daypart == "Before 9 AM"               ~ "05:00–08:59",
+    Daypart == "9 AM - before 11 AM"       ~ "09:00–10:59",
+    Daypart == "11 AM - before 2 PM"       ~ "11:00–13:59",
+    Daypart == "2 PM - before 5 PM"        ~ "14:00–16:59",
+    Daypart == "5 PM - before 9 PM"        ~ "17:00–20:59",
+    Daypart == "9 PM or later"             ~ "21:00–23:59",
+    TRUE                                   ~ Daypart
+  )) 
+```
+
+**d. Check unique values after processing**
+
+```{r}
+lapply(DayPart[c("Daypart","DayPartNumericCode")], unique)
+```
+
+
+### **Need State Day Day Part**
+
+**1. Data dictionary**
+
+
+```{r echo=TRUE}
+#View data
+NeedstateDayDaypart
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(NeedstateDayDaypart)
+```
+
+**b. Check the data quality**
+
+```{r message=FALSE, warning=FALSE}
+skim(NeedstateDayDaypart)
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values**
+
+\_ There is no unexpected decimal values.
+\_ There is no erroneous character values.
+
+```{r}
+lapply(NeedstateDayDaypart[c("Year","City","Needstates","NeedstateGroup","Day#Daypart")], unique)
+```
+
+**b. Standardize `DayPart` to Start-End Time Format**
+
+```{r}
+NeedstateDayDaypart <- NeedstateDayDaypart %>%
+  mutate(`Day#Daypart` = case_when(
+    `Day#Daypart` == "Before 9 AM"               ~ "05:00–08:59",
+    `Day#Daypart` == "9 AM - before 11 AM"       ~ "09:00–10:59",
+    `Day#Daypart` == "11 AM - before 2 PM"       ~ "11:00–13:59",
+    `Day#Daypart` == "2 PM - before 5 PM"        ~ "14:00–16:59",
+    `Day#Daypart` == "5 PM - before 9 PM"        ~ "17:00–20:59",
+    `Day#Daypart` == "9 PM or later"             ~ "21:00–23:59",
+    TRUE                                         ~ `Day#Daypart`
+  )) 
+```
+
+**c. Check unique values after processing**
+
+```{r}
+lapply(NeedstateDayDaypart[c("Day#Daypart")], unique)
+```
+### **SA Var**
+
+**1. Data dictionary**
+
+
+```{r echo=TRUE}
+#View data
+SA_var
+```
+
+**2. Data summary**
+
+**a. Variable names**
+
+```{r}
+glimpse(SA_var)
+```
+
+**b. Check the data quality**
+
+```{r message=FALSE, warning=FALSE}
+skim(SA_var)
+```
+
+**3. Erroneous Detection**
+
+**a. Check for unique character values**
+
+\_ There is no unexpected decimal values.
+\_ There is no erroneous character values.
+
+```{r}
+lapply(SA_var[c("Year","Group_size","Age","MPI#Mean","MPI_Mean_Use")], unique)
+```
+
+```{r}
+lapply(SA_var[c("City","TOM","BUMO","BUMO_Previous","MostFavourite","Gender","MPI#detail","Age#group","Age#Group#2","MPI","MPI#2","Occupation","Occupation#group")], unique)
+```
+
+**b. Convert names containing "other" to "Other" and containing "street" to "Street"**
+
+```{r}
+SA_var <- SA_var %>%
+  mutate(TOM = case_when(
+    str_detect(TOM, regex("other", ignore_case = TRUE)) ~ "Other",
+    str_detect(TOM, regex("street", ignore_case = TRUE)) ~ "Street",
+    TRUE ~ TOM
+        ),
+         BUMO = case_when(
+           str_detect(BUMO, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(BUMO, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ BUMO
+         ),
+         BUMO_Previous = case_when(
+           str_detect(BUMO_Previous, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(BUMO_Previous, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ BUMO_Previous
+         ),
+         MostFavourite = case_when(
+           str_detect(MostFavourite, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(MostFavourite, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ MostFavourite
+         ))
+```
+
+**c. Check unique values**
+
+```{r}
+lapply(SA_var[c("TOM","BUMO","BUMO_Previous","MostFavourite")],unique)
+```
+
+**d. Standardize the `MPI#detail`**
+
+```{r}
+SA_var <-SA_var %>% 
+  mutate(`MPI#detail` = case_when(
+    str_detect(`MPI#detail`, "Under\\s+3") ~ "< 3M",
+    `MPI#detail` == "Refuse"               ~ "Refuse",
+    is.na(`MPI#detail`)                    ~ NA,
+    TRUE ~ str_extract_all(`MPI#detail`, "\\d+\\.?\\d*") %>%
+      lapply(function(x) paste0(x[1], "M – ", x[2], "M")) %>%
+      unlist()
+  )) 
+```
+
+**d. Standardize the MPI**
+
+```{r}
+SA_var <- SA_var %>% 
+  mutate(MPI = case_when(
+    MPI == "VND 25m+"             ~ "> 25M",
+    is.na(MPI)                    ~ NA,
+    TRUE                          ~ str_extract_all(MPI, "\\d+\\.?\\d*") %>%
+      lapply(function(x) paste0(x[1], "M – ", x[2], "M")) %>%
+      unlist()
+  ))
+```
+
+**e. Standardize the MPI#2**
+
+```{r}
+SA_var <- SA_var %>%
+  mutate(`MPI#2` = case_when(
+    is.na(`MPI#2`) ~ NA,
+    TRUE ~ str_extract(`MPI#2`, "^\\d+")
+  )) 
+```
+
+**f. Remove text in in the Occupation**
+
+```{r}
+SA_var <- SA_var %>%
+  mutate(Occupation = str_remove(Occupation, "\\s*\\([^\\)]+\\)")) 
+```
+
+**g. Remove y.o in Age#Group#2**
+
+```{r}
+SA_var <- SA_var %>% 
+  mutate(`Age#Group#2` = case_when(
+    `Age#Group#2` == "45+ y.o."             ~ "> 45",
+    is.na(`Age#Group#2`)                    ~ NA,
+    TRUE                          ~ str_extract_all(`Age#Group#2`, "\\d+") %>%
+      lapply(function(x) paste0(x[1], " – ", x[2])) %>%
+      unlist()
+  ))
+```
+
+**Drop the `Col` variable**
+
+```{r}
+SA_var <-SA_var %>% 
+  select(-Col)
+```
+
+**Check unique values after standardizing**
+
+```{r}
+lapply(SA_var[c("MPI#detail","MPI","MPI#2","Occupation","Age#Group#2")],unique)
+```

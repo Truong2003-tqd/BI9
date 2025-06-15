@@ -281,7 +281,7 @@ Brand_Health <- Brand_Health %>%
 
 
 ```{r}
-lapply(Brand_Health[c("Year","City","Brand","Spontaneous")], unique)
+lapply(Brand_Health[c("Year","City","Brand","Spontaneous","Brand_Likability","Weekly","Daily")], unique)
 ```
 
 **b. Check for unique character values of variables not related to brand names**
@@ -306,7 +306,43 @@ Brand_Health <- Brand_Health %>%
            str_detect(Spontaneous, regex("other", ignore_case = TRUE)) ~ "Other",
            str_detect(Spontaneous, regex("street", ignore_case = TRUE)) ~ "Street",
            TRUE ~ Spontaneous
+         ),
+         Awareness = case_when(
+           str_detect(Awareness, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Awareness, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ Awareness
+         ),
+         Trial = case_when(
+           str_detect(Trial, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Trial, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ Trial
+         ),
+         P3M = case_when(
+           str_detect(P3M, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(P3M, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ P3M
+         ),
+         P1M = case_when(
+           str_detect(P1M, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(P1M, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ P1M
+         ),
+         Brand_Likability = case_when(
+           str_detect(Brand_Likability, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Brand_Likability, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ Brand_Likability
+         ),
+         Weekly = case_when(
+           str_detect(Weekly, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Weekly, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ Weekly
+         ),
+         Daily = case_when(
+           str_detect(Daily, regex("other", ignore_case = TRUE)) ~ "Other",
+           str_detect(Daily, regex("street", ignore_case = TRUE)) ~ "Street",
+           TRUE ~ Daily
          ))
+    
 ```
 
 **d. Clean and standardize `Comprehension` variable**
@@ -323,10 +359,29 @@ Brand_Health <- Brand_Health %>%
   )) 
 ```
 
+**e. Convert brand names in Weekly and Daily to "Applicable"**
+
+```{r}
+Brand_Health <- Brand_Health %>% 
+  mutate(Weekly =  case_when(
+    Weekly == Brand ~ "Applicable",
+    TRUE ~ Weekly
+  )) 
+```
+
+```{r}
+Brand_Health <- Brand_Health %>% 
+  mutate(Daily =  case_when(
+    Daily == Brand ~ "Applicable",
+    TRUE ~ Daily
+  ))
+```
+
+
 **e. Check unique values**
 
 ```{r}
-lapply(Brand_Health[c("Brand","Spontaneous","Comprehension")],unique)
+lapply(Brand_Health[c("Brand","Spontaneous","Brand_Likability","Weekly","Daily","Comprehension")], unique)
 ```
 
 ### **Companion**

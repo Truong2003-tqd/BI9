@@ -761,6 +761,7 @@ SA_var <-SA_var %>%
 SA_var <- SA_var %>% 
   mutate(MPI = case_when(
     MPI == "VND 25m+"             ~ "> 25M",
+    MPI == "Under VND 4.5m"       ~ "< 4.5M",
     is.na(MPI)                    ~ NA,
     TRUE                          ~ str_extract_all(MPI, "\\d+\\.?\\d*") %>%
       lapply(function(x) paste0(x[1], "M – ", x[2], "M")) %>%
@@ -798,15 +799,100 @@ SA_var <- SA_var %>%
   ))
 ```
 
-**Drop the `Col` variable**
+**h. Drop the `Col` variable**
 
 ```{r}
 SA_var <-SA_var %>% 
   select(-Col)
 ```
 
+
+**i. Convert "Refuse" in MPI#detail to NA**
+
+```{r}
+SA_var <- SA_var %>% 
+  mutate(`MPI#detail` = case_when(
+    `MPI#detail` == "Refuse" ~ NA,
+    TRUE                     ~ `MPI#detail`
+  )) 
+```
+
+**j. Impute missing by kNN**
+
+```{r}
+SA_var <- SA_var %>% 
+  kNN(variable = c("MPI#detail", "Age"),
+      k = 9) 
+```
+
+**k. Change MPI and MPI#2 accordingly to MPI#detail**
+
+```{r}
+SA_var <- SA_var %>% 
+  mutate(MPI = case_when(
+    `MPI#detail` %in% c("< 3M","3M – 4.49M") ~ "< 4.5M",
+    `MPI#detail` %in% c("4.5M – 6.49M","6.5M – 7.49M","7.5M – 8.99M") ~ "4.5M – 8.9M",
+    `MPI#detail` %in% c("9M – 11.99M","12M – 14.99M") ~ "9M – 14.9M",
+    `MPI#detail` %in% c("20M – 24.99M","15M – 19.99M") ~ "15M – 24.9M",
+    `MPI#detail` %in% c("25M – 29.99M","30M – 44.99M","45M – 74.99M","75M – 149.99M") ~ "> 25M"
+  ),
+    `MPI#2` = case_when(
+     MPI == "< 4.5M" ~ "1",
+     MPI == "4.5M – 8.9M" ~ "2",
+     MPI == "9M – 14.9M" ~ "3",
+     MPI == "15M – 24.9M" ~ "4",
+     MPI == "> 25M" ~ "5"
+  )) 
+```
+
+**m. Change MPI#mean accordingly to MPI#detail**
+
+```{r}
+SA_var <- SA_var %>%
+  mutate(`MPI#Mean` = str_extract_all(`MPI#detail`, "\\d+\\.?\\d*") %>%
+           lapply(function(x) {
+             mean_val <- mean(as.numeric(x)) * 1000
+             # Round to nearest 10 and subtract 1 to end in 9 (e.g., 5499)
+             ceiling(mean_val / 10) * 10 - 1
+           }) %>%
+           unlist()
+  ) %>% 
+  mutate(`MPI#Mean` = case_when(
+    `MPI#Mean` == 2999 ~ 1499,
+    TRUE ~ `MPI#Mean`
+  )) 
+```
+
+**m. Change MPI_Mean_Use accordingly to MPI#mean**
+
+```{r}
+SA_var <- SA_var %>% 
+  mutate(MPI_Mean_Use = `MPI#Mean`) 
+```
+
+**n. Change Age#group and Age#Group#2 corresponding with Age**
+
+```{r}
+SA_var <- SA_var %>%
+  mutate(`Age#group` = case_when(
+    Age >= 16 & Age <= 19                 ~ "16 - 19",
+    Age >= 20 & Age <= 29                 ~ "20 - 29",
+    Age >= 30 & Age <= 39                 ~ "30 - 39",
+    Age >= 40 & Age <= 60                 ~ "40 - 60",
+  ),
+  `Age#Group#2` = case_when(
+    Age >= 16 & Age <= 19                 ~ "16 - 19",
+    Age >= 20 & Age <= 24                 ~ "20 - 24",
+    Age >= 25 & Age <= 29                 ~ "25 - 29",
+    Age >= 30 & Age <= 34                 ~ "30 - 34",
+    Age >= 35 & Age <= 39                 ~ "35 - 39",
+    Age >= 40 & Age <= 44                 ~ "40 - 44",
+    Age >= 45                             ~ "> 45"
+  )) 
+```
+
 **Check unique values after standardizing**
 
 ```{r}
-lapply(SA_var[c("MPI#detail","MPI","MPI#2","Occupation","Age#Group#2")],unique)
+lapply(SA_var[c("MPI#detail","MPI","MPI#2","Occupation","Age","Age#group","Age#Group#2","MPI#Mean","MPI_Mean_Use")],unique) 
 ```

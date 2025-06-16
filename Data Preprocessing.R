@@ -110,15 +110,15 @@ SA_var %>%
   distinct(`Age#Group#2`)
 
 #Export file
-write.csv(Segmentation2017, "Segmentation2017.csv", row.names = FALSE)
-write.csv(Brand_Image, "Brand_Image.csv", row.names = FALSE)
-write.csv(Brand_Health, "Brand_Health.csv", row.names = FALSE)
-write.csv(Companion, "Companion.csv", row.names = FALSE)
-write.csv(Competitor_Database, "Competitor_Database.csv", row.names = FALSE)
-write.csv(DayofWeek, "DayofWeek.csv", row.names = FALSE)
-write.csv(DayPart, "DayPart.csv", row.names = FALSE)
-write.csv(NeedstateDayDaypart, "Need_State.csv", row.names = FALSE)
-write.csv(SA_var, "SA_var.csv", row.names = FALSE)
+write.csv(Segmentation2017, "Segmentation2017.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(Brand_Image, "Brand_Image.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(Brand_Health, "Brand_Health.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(Companion, "Companion.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(Competitor_Database, "Competitor_Database.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(DayofWeek, "DayofWeek.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(DayPart, "DayPart.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(NeedstateDayDaypart, "Need_State.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(SA_var, "SA_var.csv", row.names = FALSE, fileEncoding = "UTF-8")
 
 
 
@@ -145,6 +145,7 @@ SA_var <- SA_var %>%
   kNN(variable = "MPI#detail",
       k = 9) 
 
+
 SA_var %>% 
   mutate(MPI = case_when(
     `MPI#detail` %in% c("< 3M","3M – 4.49M") ~ "< 4.5M",
@@ -159,10 +160,21 @@ SA_var %>%
      MPI == "9M – 14.9M" ~ "3",
      MPI == "15M – 24.9M" ~ "4",
      MPI == "> 25M" ~ "5"
-  ),
-    `MPI#Mean` = case_when(
-      
-    )) %>% 
-    View()
+  )) 
+
+#Change MPI#mean accordingly to MPI#detail
+SA_var %>%
+  mutate(`MPI#Mean` = str_extract_all(`MPI#detail`, "\\d+\\.?\\d*") %>%
+           lapply(function(x) {
+             mean_val <- mean(as.numeric(x)) * 1000
+             # Round to nearest 10 and subtract 1 to end in 9 (e.g., 5499)
+             ceiling(mean_val / 10) * 10 - 1
+           }) %>%
+           unlist()
+  ) %>% 
+  mutate(`MPI#Mean` = case_when(
+    `MPI#Mean` == 2999 ~ 1499,
+    TRUE ~ `MPI#Mean`
+  )) 
 
 

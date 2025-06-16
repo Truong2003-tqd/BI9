@@ -110,15 +110,15 @@ SA_var %>%
   distinct(`Age#Group#2`)
 
 #Export file
-write.csv(Segmentation2017, "Segmentation2017.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(Brand_Image, "Brand_Image.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(Brand_Health, "Brand_Health.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(Companion, "Companion.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(Competitor_Database, "Competitor_Database.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(DayofWeek, "DayofWeek.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(DayPart, "DayPart.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(NeedstateDayDaypart, "Need_State.csv", row.names = FALSE, fileEncoding = "UTF-8")
-write.csv(SA_var, "SA_var.csv", row.names = FALSE, fileEncoding = "UTF-8")
+write.csv(Segmentation2017, "Segmentation2017.csv", row.names = FALSE)
+write.csv(Brand_Image, "Brand_Image.csv", row.names = FALSE)
+write.csv(Brand_Health, "Brand_Health.csv", row.names = FALSE)
+write.csv(Companion, "Companion.csv", row.names = FALSE)
+write.csv(Competitor_Database, "Competitor_Database.csv")
+write.csv(DayofWeek, "DayofWeek.csv", row.names = FALSE)
+write.csv(DayPart, "DayPart.csv", row.names = FALSE)
+write.csv(NeedstateDayDaypart, "Need_State.csv", row.names = FALSE)
+write.csv(SA_var, "SA_var.csv", row.names = FALSE)
 
 
 
@@ -176,5 +176,6 @@ SA_var %>%
     `MPI#Mean` == 2999 ~ 1499,
     TRUE ~ `MPI#Mean`
   )) 
+
 
 
